@@ -75,6 +75,10 @@ func (w *Writer) Add(ikey, value []byte) error {
 	return w.flushBlock()
 }
 
+func (w *Writer) Size() int64 {
+	return w.offset
+}
+
 func (w *Writer) Finish() (Meta, error) {
 	if w.done {
 		panic("sstable: Finish after Finish")
