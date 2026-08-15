@@ -14,16 +14,20 @@ const (
 	opGet
 	opReopen
 	opCrash
+	opFlush
+	opCompact
 )
 
 const (
 	_sequenceLength = 150
 	_maxValueLen    = 120
 	_shareTotal     = 100
-	_putShare       = 45
-	_deleteShare    = 65
-	_getShare       = 90
-	_reopenShare    = 95
+	_putShare       = 40
+	_deleteShare    = 58
+	_getShare       = 83
+	_reopenShare    = 88
+	_crashShare     = 92
+	_flushShare     = 97
 )
 
 const (
@@ -49,8 +53,12 @@ func (o op) String() string {
 		return "get " + o.key
 	case opReopen:
 		return "reopen"
-	default:
+	case opCrash:
 		return "crash"
+	case opFlush:
+		return "flush"
+	default:
+		return "compact"
 	}
 }
 
@@ -75,8 +83,12 @@ func generateOp(rng *rand.Rand, seed uint64, index int) op {
 		return op{kind: opGet, key: key}
 	case roll < _reopenShare:
 		return op{kind: opReopen}
-	default:
+	case roll < _crashShare:
 		return op{kind: opCrash}
+	case roll < _flushShare:
+		return op{kind: opFlush}
+	default:
+		return op{kind: opCompact}
 	}
 }
 

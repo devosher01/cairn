@@ -15,6 +15,14 @@ const _scatterSalt uint64 = 0xD1B54A32D192ED03
 
 const _crashModeSpan = 3
 
+const (
+	_modelMemtableSize   int64 = 2048
+	_modelTargetFileSize int64 = 4096
+	_modelBaseLevelSize  int64 = 8192
+	_modelBlockSize            = 512
+	_modelL0Compact            = 2
+)
+
 type runner struct {
 	t       *testing.T
 	seed    uint64
@@ -38,7 +46,7 @@ func runSequence(t *testing.T, seed uint64, mode cairn.SyncMode) int {
 		sandbox: sim.Env(),
 		oracle:  newOracle(),
 	}
-	r.db = openDB(t, r.sandbox, mode)
+	r.db = r.mustOpen(fmt.Sprintf("seed %d", seed))
 
 	ops := generate(seed, _sequenceLength)
 	for i, o := range ops {
@@ -59,6 +67,10 @@ func (r *runner) step(index int, o op) {
 		r.get(index, o)
 	case opReopen:
 		r.reopen(index, o)
+	case opFlush:
+		r.flush(index, o)
+	case opCompact:
+		r.compact(index, o)
 	case opCrash:
 		if r.crashes > 0 {
 			r.reopen(index, op{kind: opReopen})
@@ -103,13 +115,26 @@ func (r *runner) get(index int, o op) {
 	}
 }
 
+func (r *runner) flush(index int, o op) {
+	label := r.label(index, o)
+	if err := r.db.TestingFlush(); err != nil {
+		r.t.Fatalf("%s: TestingFlush returned error: %v", label, err)
+	}
+	r.checkDomain(label)
+}
+
+func (r *runner) compact(index int, o op) {
+	r.compactAndCheck(r.label(index, o))
+}
+
 func (r *runner) reopen(index int, o op) {
 	label := r.label(index, o)
 	if err := r.db.Close(); err != nil {
 		r.t.Fatalf("%s: Close returned error: %v", label, err)
 	}
-	r.db = openDB(r.t, r.sandbox, r.mode)
+	r.db = r.mustOpen(label)
 	r.checkDomain(label)
+	r.compactAndCheck(label)
 }
 
 func (r *runner) crash(index int, o op) {
@@ -123,24 +148,29 @@ func (r *runner) crash(index int, o op) {
 	r.crashes++
 	r.sandbox = env.Env{FS: disk, Clock: r.sandbox.Clock, Rand: r.sandbox.Rand}
 
-	db, err := cairn.Open(_dbDir, &cairn.Options{Env: r.sandbox, Sync: r.mode})
+	db, err := cairn.Open(_dbDir, modelOptions(r.sandbox, r.mode))
 	if err != nil {
 		r.t.Fatalf("%s: Open after %s crash returned error: %v", label, crashModeName(point.Mode), err)
 	}
 	r.db = db
 
+	r.verifyRecovery(label, point.Mode)
+	r.compactAndCheck(label)
+}
+
+func (r *runner) verifyRecovery(label string, mode simenv.CrashMode) {
 	dump := r.dump(label)
 	if r.mode == cairn.SyncAlways {
 		if !r.oracle.matches(dump) {
 			r.t.Fatalf("%s: %s crash recovered %s, want every acknowledged write %s", label,
-				crashModeName(point.Mode), formatState(dump), formatState(r.oracle.state))
+				crashModeName(mode), formatState(dump), formatState(r.oracle.state))
 		}
 
 		return
 	}
 	if !r.oracle.adoptPrefix(dump) {
 		r.t.Fatalf("%s: %s crash recovered %s, which is no prefix of the %d acknowledged mutations ending in %s",
-			label, crashModeName(point.Mode), formatState(dump), r.oracle.acked(),
+			label, crashModeName(mode), formatState(dump), r.oracle.acked(),
 			formatState(r.oracle.state))
 	}
 }
@@ -154,6 +184,13 @@ func (r *runner) finish(count int) {
 	if err := r.db.Close(); !errors.Is(err, cairn.ErrClosed) {
 		r.t.Fatalf("%s: second Close error = %v, want %v", label, err, cairn.ErrClosed)
 	}
+}
+
+func (r *runner) compactAndCheck(label string) {
+	if err := r.db.TestingCompact(); err != nil {
+		r.t.Fatalf("%s: TestingCompact returned error: %v", label, err)
+	}
+	r.checkDomain(label)
 }
 
 func (r *runner) checkDomain(label string) {
@@ -181,8 +218,30 @@ func (r *runner) dump(label string) map[string][]byte {
 	return out
 }
 
+func (r *runner) mustOpen(label string) *cairn.DB {
+	db, err := cairn.Open(_dbDir, modelOptions(r.sandbox, r.mode))
+	if err != nil {
+		r.t.Fatalf("%s: Open returned error: %v", label, err)
+	}
+
+	return db
+}
+
 func (r *runner) label(index int, o op) string {
 	return fmt.Sprintf("seed %d op %d (%s)", r.seed, index, o)
+}
+
+func modelOptions(sandbox env.Env, mode cairn.SyncMode) *cairn.Options {
+	return &cairn.Options{
+		Env:                   sandbox,
+		Sync:                  mode,
+		MemtableSize:          _modelMemtableSize,
+		BlockSize:             _modelBlockSize,
+		L0CompactTrigger:      _modelL0Compact,
+		TargetFileSize:        _modelTargetFileSize,
+		BaseLevelSize:         _modelBaseLevelSize,
+		DisableAutoCompaction: true,
+	}
 }
 
 func crashModeFor(n int) simenv.CrashMode {

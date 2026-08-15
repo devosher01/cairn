@@ -14,8 +14,8 @@ const (
 )
 
 const (
-	_alwaysSeeds = 150
-	_alwaysShort = 30
+	_alwaysSeeds = 180
+	_alwaysShort = 36
 	_offSeeds    = 100
 	_offShort    = 20
 )
