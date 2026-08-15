@@ -6,18 +6,32 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-
-	"github.com/devosher01/cairn/internal/env"
 )
 
-const _walSuffix = ".wal"
+const (
+	_walSuffix       = ".wal"
+	_sstSuffix       = ".sst"
+	_manifestTmpName = "MANIFEST.tmp"
+)
 
 func walName(num uint64) string {
 	return fmt.Sprintf("%06d%s", num, _walSuffix)
 }
 
 func walNumber(name string) (uint64, bool) {
-	base, ok := strings.CutSuffix(name, _walSuffix)
+	return fileNumber(name, _walSuffix)
+}
+
+func sstName(num uint64) string {
+	return fmt.Sprintf("%06d%s", num, _sstSuffix)
+}
+
+func sstNumber(name string) (uint64, bool) {
+	return fileNumber(name, _sstSuffix)
+}
+
+func fileNumber(name, suffix string) (uint64, bool) {
+	base, ok := strings.CutSuffix(name, suffix)
 	if !ok {
 		return 0, false
 	}
@@ -28,31 +42,10 @@ func walNumber(name string) (uint64, bool) {
 	return num, true
 }
 
-func walFiles(fs env.FS) ([]string, uint64, error) {
-	names, err := fs.List()
-	if err != nil {
-		return nil, 0, err
-	}
-	type walFile struct {
-		num  uint64
-		name string
-	}
-	var wals []walFile
-	var maxNum uint64
-	for _, name := range names {
-		num, ok := walNumber(name)
-		if !ok {
-			continue
-		}
-		wals = append(wals, walFile{num: num, name: name})
-		maxNum = max(maxNum, num)
-	}
-	slices.SortFunc(wals, func(a, b walFile) int {
-		return cmp.Compare(a.num, b.num)
+func sortWALs(names []string) {
+	slices.SortFunc(names, func(a, b string) int {
+		na, _ := walNumber(a)
+		nb, _ := walNumber(b)
+		return cmp.Compare(na, nb)
 	})
-	out := make([]string, len(wals))
-	for i, w := range wals {
-		out[i] = w.name
-	}
-	return out, maxNum, nil
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/devosher01/cairn/internal/batch"
 	"github.com/devosher01/cairn/internal/env"
 	"github.com/devosher01/cairn/internal/keys"
+	"github.com/devosher01/cairn/internal/manifest"
 	"github.com/devosher01/cairn/internal/memtable"
 	"github.com/devosher01/cairn/internal/wal"
 )
@@ -24,13 +25,29 @@ type DB struct {
 	ikeyBuf    []byte
 	lastSeq    keys.Seq
 	wal        *wal.Writer
+	walNum     uint64
 	failed     error
 
-	mu     sync.Mutex
-	mem    *memtable.Memtable
-	closed bool
+	mu           sync.Mutex
+	mem          *memtable.Memtable
+	imm          *memtable.Memtable
+	immCutoffWAL uint64
+	current      *version
+	closed       bool
+	bgErr        error
+	bgRetries    int
+	flushDone    sync.Cond
+	stallEnd     sync.Cond
+	bgWake       sync.Cond
+	bgDone       chan struct{}
 
-	visible atomic.Uint64
+	state         manifest.State
+	handles       map[uint64]*tableHandle
+	compactCursor [manifest.NumLevels][]byte
+
+	nextFileNum atomic.Uint64
+	visible     atomic.Uint64
+	counters    counters
 }
 
 func (db *DB) Put(key, value []byte) error {
@@ -40,6 +57,7 @@ func (db *DB) Put(key, value []byte) error {
 	if err := validateValue(value); err != nil {
 		return err
 	}
+	db.counters.puts.Add(1)
 	return db.commit(func(b *batch.Batch) {
 		b.Put(key, value)
 	})
@@ -49,6 +67,7 @@ func (db *DB) Delete(key []byte) error {
 	if err := validateKey(key); err != nil {
 		return err
 	}
+	db.counters.deletes.Add(1)
 	return db.commit(func(b *batch.Batch) {
 		b.Delete(key)
 	})
@@ -58,16 +77,38 @@ func (db *DB) Get(key []byte) ([]byte, error) {
 	if err := validateKey(key); err != nil {
 		return nil, err
 	}
+	db.counters.gets.Add(1)
 	db.mu.Lock()
 	if db.closed {
 		db.mu.Unlock()
 		return nil, ErrClosed
 	}
-	mem := db.mem
+	mem, imm, v := db.mem, db.imm, db.current
+	v.ref()
 	db.mu.Unlock()
+	defer v.unref()
 
-	value, kind, ok := mem.Get(key, keys.Seq(db.visible.Load()))
+	seq := keys.Seq(db.visible.Load())
+	if value, kind, ok := mem.Get(key, seq); ok {
+		return getResult(value, kind)
+	}
+	if imm != nil {
+		if value, kind, ok := imm.Get(key, seq); ok {
+			return getResult(value, kind)
+		}
+	}
+	value, kind, ok, err := v.get(key, seq)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrCorruption, err)
+	}
 	if !ok || kind == keys.KindDelete {
+		return nil, ErrNotFound
+	}
+	return bytes.Clone(value), nil
+}
+
+func getResult(value []byte, kind keys.Kind) ([]byte, error) {
+	if kind == keys.KindDelete {
 		return nil, ErrNotFound
 	}
 	return bytes.Clone(value), nil
@@ -82,9 +123,19 @@ func (db *DB) Close() error {
 		return ErrClosed
 	}
 	db.closed = true
+	db.bgWake.Broadcast()
+	db.flushDone.Broadcast()
+	db.stallEnd.Broadcast()
 	db.mu.Unlock()
 
+	if db.bgDone != nil {
+		<-db.bgDone
+	}
 	err := db.wal.Close()
+	db.mu.Lock()
+	current := db.current
+	db.mu.Unlock()
+	current.unref()
 	if lockErr := db.fileLock.Close(); lockErr != nil && err == nil {
 		err = lockErr
 	}
@@ -98,6 +149,9 @@ func (db *DB) commit(fill func(*batch.Batch)) error {
 	if err := db.writable(); err != nil {
 		return err
 	}
+	if err := db.waitForWriteRoom(); err != nil {
+		return err
+	}
 	db.writeBatch.Reset()
 	fill(db.writeBatch)
 	if db.writeBatch.Count() == 0 {
@@ -107,6 +161,7 @@ func (db *DB) commit(fill func(*batch.Batch)) error {
 	if err := db.wal.Append(payload); err != nil {
 		return db.fail(err)
 	}
+	db.counters.walBytesWritten.Add(uint64(len(payload)))
 	if db.opts.Sync == SyncAlways {
 		if err := db.wal.Sync(); err != nil {
 			return db.fail(err)
@@ -118,6 +173,10 @@ func (db *DB) commit(fill func(*batch.Batch)) error {
 	}
 	db.lastSeq = last
 	db.visible.Store(uint64(last))
+
+	if db.mem.Size() >= db.opts.MemtableSize {
+		return db.rotate()
+	}
 	return nil
 }
 
@@ -142,12 +201,89 @@ func (db *DB) apply(payload []byte) (keys.Seq, error) {
 	return last, nil
 }
 
+func (db *DB) rotate() error {
+	db.mu.Lock()
+	if db.opts.DisableAutoCompaction && db.imm != nil {
+		db.mu.Unlock()
+		if err := db.runFlush(); err != nil {
+			return db.fail(err)
+		}
+		db.mu.Lock()
+	}
+	for db.imm != nil && !db.closed && db.bgErr == nil {
+		db.flushDone.Wait()
+	}
+	if db.closed {
+		db.mu.Unlock()
+		return ErrClosed
+	}
+	if db.bgErr != nil {
+		err := db.bgErr
+		db.mu.Unlock()
+		return fmt.Errorf("%w: %w", ErrDBFailed, err)
+	}
+	db.mu.Unlock()
+
+	if err := db.wal.Close(); err != nil {
+		return db.fail(err)
+	}
+	num := db.nextFileNum.Add(1)
+	f, err := db.fs.Create(walName(num))
+	if err != nil {
+		return db.fail(err)
+	}
+	w, err := wal.NewWriter(f)
+	if err != nil {
+		return db.fail(err)
+	}
+	if err := db.fs.SyncDir(); err != nil {
+		return db.fail(err)
+	}
+
+	db.mu.Lock()
+	db.imm = db.mem
+	db.immCutoffWAL = num
+	db.mem = memtable.New(db.opts.Env.Rand)
+	db.bgWake.Signal()
+	db.mu.Unlock()
+
+	db.wal = w
+	db.walNum = num
+	return nil
+}
+
+func (db *DB) waitForWriteRoom() error {
+	if db.opts.DisableAutoCompaction {
+		return nil
+	}
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	stalled := false
+	for len(db.current.levels[0]) >= db.opts.L0StallTrigger && !db.closed && db.bgErr == nil {
+		if !stalled {
+			stalled = true
+			db.counters.writeStalls.Add(1)
+		}
+		db.stallEnd.Wait()
+	}
+	if db.closed {
+		return ErrClosed
+	}
+	if db.bgErr != nil {
+		return fmt.Errorf("%w: %w", ErrDBFailed, db.bgErr)
+	}
+	return nil
+}
+
 func (db *DB) writable() error {
 	db.mu.Lock()
-	closed := db.closed
+	closed, bgErr := db.closed, db.bgErr
 	db.mu.Unlock()
 	if closed {
 		return ErrClosed
+	}
+	if bgErr != nil {
+		return fmt.Errorf("%w: %w", ErrDBFailed, bgErr)
 	}
 	if db.failed != nil {
 		return fmt.Errorf("%w: %w", ErrDBFailed, db.failed)
