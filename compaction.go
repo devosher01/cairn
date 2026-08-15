@@ -46,6 +46,12 @@ func (db *DB) runCompaction(level int) error {
 		}
 		return err
 	}
+	if err := db.fs.SyncDir(); err != nil {
+		for _, t := range outputs {
+			_ = db.fs.Remove(sstName(t.FileNum))
+		}
+		return err
+	}
 
 	newState := db.state.Clone()
 	dropped := make([]uint64, 0, len(inputs))
