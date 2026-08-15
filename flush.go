@@ -24,6 +24,10 @@ func (db *DB) runFlush() error {
 		_ = db.fs.Remove(sstName(num))
 		return err
 	}
+	if err := db.fs.SyncDir(); err != nil {
+		_ = db.fs.Remove(sstName(num))
+		return err
+	}
 
 	newState := db.state.Clone()
 	newState.Levels[0] = append(newState.Levels[0], meta)
