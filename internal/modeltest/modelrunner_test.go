@@ -1,4 +1,4 @@
-package cairn_test
+package modeltest_test
 
 import (
 	"bytes"
@@ -303,8 +303,8 @@ func (r *runner) comparePairs(label string, got, want []kv) {
 
 func (r *runner) flush(index int, o op) {
 	label := r.label(index, o)
-	if err := r.db.TestingFlush(); err != nil {
-		r.t.Fatalf("%s: TestingFlush returned error: %v", label, err)
+	if err := r.db.Flush(); err != nil {
+		r.t.Fatalf("%s: Flush returned error: %v", label, err)
 	}
 	r.checkDomain(label)
 }
@@ -376,8 +376,8 @@ func (r *runner) finish(count int) {
 }
 
 func (r *runner) compactAndCheck(label string) {
-	if err := r.db.TestingCompact(); err != nil {
-		r.t.Fatalf("%s: TestingCompact returned error: %v", label, err)
+	if err := r.db.Compact(); err != nil {
+		r.t.Fatalf("%s: Compact returned error: %v", label, err)
 	}
 	r.checkDomain(label)
 }

@@ -1,4 +1,4 @@
-package cairn_test
+package modeltest_test
 
 import (
 	"bytes"
@@ -128,15 +128,15 @@ func (w *crashWorkload) removes(step, count int) int {
 }
 
 func (w *crashWorkload) flush() {
-	if err := w.db.TestingFlush(); err != nil {
-		w.t.Fatalf("%s: TestingFlush returned error: %v", w.label(w.oracle.acked()), err)
+	if err := w.db.Flush(); err != nil {
+		w.t.Fatalf("%s: Flush returned error: %v", w.label(w.oracle.acked()), err)
 	}
 	w.barrier()
 }
 
 func (w *crashWorkload) compact() {
-	if err := w.db.TestingCompact(); err != nil {
-		w.t.Fatalf("%s: TestingCompact returned error: %v", w.label(w.oracle.acked()), err)
+	if err := w.db.Compact(); err != nil {
+		w.t.Fatalf("%s: Compact returned error: %v", w.label(w.oracle.acked()), err)
 	}
 }
 
@@ -148,15 +148,16 @@ func (w *crashWorkload) close() {
 }
 
 func (w *crashWorkload) requireL0(least int) {
-	if got := len(w.db.TestingLevelFiles()[0]); got < least {
+	if got := w.db.Metrics().Levels[0].Tables; got < least {
 		w.t.Fatalf("%s: level 0 holds %d tables, want at least %d", w.label(w.oracle.acked()), got, least)
 	}
 }
 
 func (w *crashWorkload) requireDeep(least int) {
+	levels := w.db.Metrics().Levels
 	deep := 0
-	for _, level := range w.db.TestingLevelFiles()[1:] {
-		deep += len(level)
+	for _, level := range levels[1:] {
+		deep += level.Tables
 	}
 	if deep < least {
 		w.t.Fatalf("%s: levels 1 and deeper hold %d tables, want at least %d",

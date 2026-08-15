@@ -1,44 +1,20 @@
 package cairn
 
-import "github.com/devosher01/cairn/internal/batch"
-
-const (
-	MaxBatchLen   = 64 << 20
-	MaxBatchCount = 1_000_000
-)
+import "github.com/devosher01/cairn/internal/engine"
 
 type Batch struct {
-	inner *batch.Batch
-	err   error
+	inner *engine.Batch
 }
 
 func NewBatch() *Batch {
-	return &Batch{inner: batch.New()}
+	return &Batch{inner: engine.NewBatch()}
 }
 
 func (b *Batch) Put(key, value []byte) {
-	if b.err != nil {
-		return
-	}
-	if err := validateKey(key); err != nil {
-		b.err = err
-		return
-	}
-	if err := validateValue(value); err != nil {
-		b.err = err
-		return
-	}
 	b.inner.Put(key, value)
 }
 
 func (b *Batch) Delete(key []byte) {
-	if b.err != nil {
-		return
-	}
-	if err := validateKey(key); err != nil {
-		b.err = err
-		return
-	}
 	b.inner.Delete(key)
 }
 
@@ -52,17 +28,4 @@ func (b *Batch) Len() int {
 
 func (b *Batch) Reset() {
 	b.inner.Reset()
-	b.err = nil
-}
-
-func (db *DB) Write(b *Batch) error {
-	if b.err != nil {
-		return b.err
-	}
-	if b.inner.Len() > MaxBatchLen || b.inner.Count() > MaxBatchCount {
-		return ErrBatchTooLarge
-	}
-	db.commitMu.Lock()
-	defer db.commitMu.Unlock()
-	return db.commitLocked(b.inner)
 }

@@ -1,4 +1,4 @@
-package cairn
+package engine
 
 const _maxTaskRetries = 3
 
@@ -7,8 +7,11 @@ func (db *DB) backgroundWorker() {
 	for {
 		db.mu.Lock()
 		for !db.closed && !db.hasWork() {
+			db.bgIdle = true
+			db.idleWait.Broadcast()
 			db.bgWake.Wait()
 		}
+		db.bgIdle = false
 		if db.closed {
 			db.mu.Unlock()
 			return
@@ -35,6 +38,7 @@ func (db *DB) backgroundWorker() {
 			db.bgErr = err
 			db.flushDone.Broadcast()
 			db.stallEnd.Broadcast()
+			db.idleWait.Broadcast()
 			db.mu.Unlock()
 			return
 		}

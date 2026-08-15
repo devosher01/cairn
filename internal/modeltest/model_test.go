@@ -1,4 +1,4 @@
-package cairn_test
+package modeltest_test
 
 import (
 	"fmt"

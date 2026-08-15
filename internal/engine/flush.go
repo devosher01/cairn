@@ -1,4 +1,4 @@
-package cairn
+package engine
 
 import (
 	"fmt"
@@ -116,13 +116,13 @@ func (db *DB) installVersion(state manifest.State, dropped []uint64) {
 	}
 	slices.Reverse(levels[0])
 	v := newVersion(db, levels)
-	db.state = state
 	for _, num := range dropped {
 		db.handles[num].obsolete.Store(true)
 		delete(db.handles, num)
 	}
 
 	db.mu.Lock()
+	db.state = state
 	old := db.current
 	db.current = v
 	db.mu.Unlock()

@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go test -race -count=1 -run 'TestModel' -timeout 80m .
+      - run: go test -race -count=1 -run 'TestModel' -timeout 80m ./internal/modeltest/
   crash-campaign:
     strategy:
       matrix:
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go test -race -count=1 -run 'TestCrashCampaign_FullEngine' -timeout 80m .
+      - run: go test -race -count=1 -run 'TestCrashCampaign_FullEngine' -timeout 80m ./internal/modeltest/
   fuzz-long:
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -47,7 +47,7 @@ jobs:
       - run: go test -run='^$' -fuzz=FuzzOpen -fuzztime=10m ./internal/sstable/
       - run: go test -run='^$' -fuzz=FuzzDecode -fuzztime=10m ./internal/manifest/
       - run: go test -run='^$' -fuzz=FuzzReplay -fuzztime=10m ./internal/wal/
-      - run: go test -run='^$' -fuzz=FuzzModelOps -fuzztime=10m .
+      - run: go test -run='^$' -fuzz=FuzzModelOps -fuzztime=10m ./internal/modeltest/
   kill9-long:
     strategy:
       matrix:

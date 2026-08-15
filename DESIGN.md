@@ -80,8 +80,10 @@ flowchart TB
 ### 2.1 Package layout
 
 ```
-cairn/                    public API + engine core (DB, write/read paths,
-                          flush/compaction orchestration, versions, recovery)
+cairn/                    public API façade: DB, Batch, Snapshot, Iterator,
+                          Options, errors, metrics — thin delegations, no logic
+  internal/engine         the engine: commit path, recovery, versions, flush,
+                          leveled compaction, background worker, merge iterators
   internal/env            FS, Clock, Rand interfaces; osenv (real) and simenv
                           (deterministic simulation with fault injection)
   internal/keys           internal key encoding, comparator, sequence numbers
@@ -90,11 +92,22 @@ cairn/                    public API + engine core (DB, write/read paths,
   internal/memtable       skiplist
   internal/sstable        block builder/reader, table writer/reader, bloom filter
   internal/manifest       manifest encode/decode, atomic install
+  internal/crashtest      crash-point enumeration over simenv op logs
+  internal/invariant      structural invariant checker (I1..I8)
+  internal/modeltest      model campaigns, crash campaign, fuzz-ops, concurrency
 ```
 
-**Import DAG:** the root package imports `internal/*`; internal packages import only
-`internal/env` and `internal/keys` (plus stdlib); `internal/env` and `internal/keys`
-import only stdlib. No cycles, no internal package imports the root.
+**Import DAG:** the root package imports only `internal/engine` and `internal/env`
+(for the `Options.Env` type); `internal/engine` composes the component packages;
+components import only `internal/env` and `internal/keys` (plus stdlib), which
+themselves import only stdlib. Test-only packages (`crashtest`, `invariant`,
+`modeltest`) sit outside the engine's import graph. No cycles, nothing imports
+the root.
+
+The root package holds one file per public type and no logic — every root file is
+a thin delegation into `internal/engine`. This keeps the import path (`cairn`) as
+the API surface while the entire implementation lives under `internal/`, grouped
+by subsystem.
 
 **Responsibility rationale (one reason each):**
 
@@ -592,6 +605,8 @@ func (db *DB) Get(key []byte) ([]byte, error)          // ErrNotFound; returned 
 func (db *DB) Put(key, value []byte) error
 func (db *DB) Delete(key []byte) error
 func (db *DB) Write(b *Batch) error                    // atomic
+func (db *DB) Flush() error                            // memtable → L0, returns when durable
+func (db *DB) Compact() error                          // flush + drain all pending compaction work
 func (db *DB) NewIterator(o IterOptions) (*Iterator, error)
 func (db *DB) NewSnapshot() (*Snapshot, error)
 func (db *DB) Metrics() Metrics

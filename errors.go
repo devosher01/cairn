@@ -1,15 +1,15 @@
 package cairn
 
-import "errors"
+import "github.com/devosher01/cairn/internal/engine"
 
 var (
-	ErrNotFound      = errors.New("cairn: not found")
-	ErrClosed        = errors.New("cairn: closed")
-	ErrLocked        = errors.New("cairn: locked")
-	ErrCorruption    = errors.New("cairn: corruption")
-	ErrDBFailed      = errors.New("cairn: db failed")
-	ErrInvalidKey    = errors.New("cairn: invalid key")
-	ErrInvalidValue  = errors.New("cairn: invalid value")
-	ErrBatchTooLarge = errors.New("cairn: batch too large")
-	ErrOpenHandles   = errors.New("cairn: open snapshots or iterators")
+	ErrNotFound      = engine.ErrNotFound
+	ErrClosed        = engine.ErrClosed
+	ErrLocked        = engine.ErrLocked
+	ErrCorruption    = engine.ErrCorruption
+	ErrDBFailed      = engine.ErrDBFailed
+	ErrInvalidKey    = engine.ErrInvalidKey
+	ErrInvalidValue  = engine.ErrInvalidValue
+	ErrBatchTooLarge = engine.ErrBatchTooLarge
+	ErrOpenHandles   = engine.ErrOpenHandles
 )

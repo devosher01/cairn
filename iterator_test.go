@@ -115,11 +115,10 @@ func TestIterator_MergesEntriesAcrossLevels(t *testing.T) {
 	putAll(t, db, "g=memtable")
 	mustDelete(t, db, "a")
 
-	levels := db.TestingLevelFiles()
-	if len(levels[0]) == 0 {
+	if levelZeroTables(db) == 0 {
 		t.Fatalf("level 0 holds no tables, want the last flush there")
 	}
-	if deep := countTables(levels[1:]); deep == 0 {
+	if deepTables(db) == 0 {
 		t.Fatalf("levels below 0 hold no tables, want the compaction output there")
 	}
 
