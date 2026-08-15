@@ -1,6 +1,8 @@
 # Cairn Design Document
 
-**Status:** Draft — pending approval. No code exists until this document is approved.
+**Status:** Implemented — this document describes the shipped v1 design. Approved as the
+build contract before the first line of code; updated after implementation only where the
+shipped API refined the draft (noted inline).
 **Scope:** v1 (`v0.1.0`)
 **Module:** `github.com/devosher01/cairn`
 **Language:** Go (latest stable, pinned in CI). Zero third-party dependencies in the engine.
@@ -291,7 +293,7 @@ atomically at step 8 — a concurrent reader either sees all of it or none.
 | Mode | Contract on `Write` return |
 |---|---|
 | `SyncAlways` (default) | Entry is durable. A crash loses nothing acknowledged. |
-| `SyncInterval(d)` | Entry is durable within ≤ `d` (background timer fsync via `Clock`). A crash loses at most the last window. |
+| `SyncInterval` | Entry is durable within ≤ `Options.Interval` (background timer fsync via `Clock`). A crash loses at most the last window. |
 | `SyncOff` | Durable only at WAL rotation and `Close`. A crash may lose the entire unsynced suffix. |
 
 All modes preserve the **prefix property** (§1.3). WAL rotation and `Close` fsync
@@ -590,8 +592,8 @@ func (db *DB) Get(key []byte) ([]byte, error)          // ErrNotFound; returned 
 func (db *DB) Put(key, value []byte) error
 func (db *DB) Delete(key []byte) error
 func (db *DB) Write(b *Batch) error                    // atomic
-func (db *DB) NewIterator(o IterOptions) *Iterator
-func (db *DB) NewSnapshot() *Snapshot
+func (db *DB) NewIterator(o IterOptions) (*Iterator, error)
+func (db *DB) NewSnapshot() (*Snapshot, error)
 func (db *DB) Metrics() Metrics
 func (db *DB) Close() error
 
@@ -599,13 +601,18 @@ type Batch struct{ ... }                               // NewBatch(); (*Batch).P
 
 type Snapshot struct{ ... }                            // Get / NewIterator / Close
 
-type Iterator struct{ ... }                            // SeekGE / First / Next / Valid / Key / Value / Error / Close
+type Iterator struct{ ... }                            // SeekGE / First / Next (each returns bool)
+                                                       // Valid / Key / Value / Error / Close
 
 type IterOptions struct {
     LowerBound []byte                                  // inclusive; nil = unbounded
     UpperBound []byte                                  // exclusive; nil = unbounded
 }
 ```
+
+Shipped refinement over the draft: `NewSnapshot` and `NewIterator` return an error so a
+closed database surfaces `ErrClosed` instead of a dead handle, and the iterator's
+positioning methods return whether the iterator is valid.
 
 `DB` is safe for concurrent use. Writes are serialized internally (single-writer
 engine); readers scale. `Iterator` and `Batch` instances are single-goroutine.
@@ -622,7 +629,7 @@ wrapped with context, matchable via `errors.Is`.
 |---|---|---|
 | `Env` | `osenv` | Tests inject `simenv`. |
 | `Sync` | `SyncAlways` | Durability by default; opting into speed is explicit. |
-| `SyncInterval` | 0 | Used when `Sync = SyncIntervalMode`. |
+| `Interval` | 100ms | Used when `Sync = SyncInterval`. |
 | `MemtableSize` | 4 MiB | Rotation threshold. |
 | `BlockSize` | 4 KiB | Data block cut target. |
 | `BloomBitsPerKey` | 10 | ~1% false-positive rate. |
@@ -783,11 +790,12 @@ definition of truth:
 
 | Job | Content | Budget |
 |---|---|---|
-| lint | `gofumpt` (diff-clean), `go vet`, `staticcheck`, forbidden-import check, zero-comment check | fast |
-| test | `go test -race ./...` including bounded model campaign and crash campaign | ~5 min |
-| fuzz-short | all fuzz targets, short fuzztime each | ~5 min |
-| kill9 | §17.7 bounded | ~2 min |
-| nightly | full campaigns: ≥ 1 M-op crash enumeration, extended fuzz, long kill -9, date-seed model run | hours, scheduled + manual dispatch |
+| lint | `gofumpt` (diff-clean), `go vet`, `staticcheck`, `lawcheck` (zero comments, forbidden imports, no real-clock access) | fast |
+| test | `go test -race ./...` including bounded model and crash campaigns, both OSes | ~2 min |
+| fuzz | five fuzz targets, 20s each | ~3 min |
+| kill9 | §17.7, 8 iterations, both OSes | ~1 min |
+| bench-build | vet + short-test of the bench module | ~2 min |
+| nightly | model campaign at scale 40 (1.68 M operations per OS, plus a run-id-derived extra seed), crash enumeration at scale 8 (~216 k crash states per OS), 10-minute fuzz per target, 150 kill -9 iterations per OS | ~1 h, scheduled + manual dispatch |
 
 Reproducibility rules: every randomized test prints its seed on failure; no test
 reads wall-clock time or global rand; the engine cannot (§12, enforced by lint).
