@@ -2,6 +2,8 @@ package cairn_test
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"sync/atomic"
 	"testing"
 
@@ -48,6 +50,13 @@ func runCampaign(t *testing.T, mode cairn.SyncMode, firstSeed uint64, seeds int)
 			total.Add(int64(runSequence(t, seed, mode)))
 		})
 	}
+	if seed, ok := extraSeed(); ok {
+		t.Run(fmt.Sprintf("extra-seed-%d", seed), func(t *testing.T) {
+			t.Parallel()
+
+			total.Add(int64(runSequence(t, seed, mode)))
+		})
+	}
 }
 
 func campaignSeeds(full, short int) int {
@@ -55,5 +64,23 @@ func campaignSeeds(full, short int) int {
 		return short
 	}
 
-	return full
+	return full * campaignScale()
+}
+
+func campaignScale() int {
+	scale, err := strconv.Atoi(os.Getenv("CAIRN_CAMPAIGN_SCALE"))
+	if err != nil || scale < 1 {
+		return 1
+	}
+
+	return scale
+}
+
+func extraSeed() (uint64, bool) {
+	seed, err := strconv.ParseUint(os.Getenv("CAIRN_EXTRA_SEED"), 10, 64)
+	if err != nil {
+		return 0, false
+	}
+
+	return seed, true
 }
