@@ -116,6 +116,11 @@ func scanRange(db *cairn.DB) error {
 `Key` and `Value` return memory owned by the iterator and valid only until the
 next positioning call; copy anything that has to outlive it.
 
+`Flush` forces the memtable to disk and returns once it is durable; `Compact`
+additionally drains all pending compaction work. Neither is needed in normal
+operation — the background worker schedules both — but they are useful before a
+backup or after a bulk load.
+
 A snapshot pins a point-in-time view. Reads through it ignore every write
 committed after it was taken, and it holds the underlying files alive until it
 is closed.

@@ -1,23 +1,8 @@
 package cairn
 
-import (
-	"sync/atomic"
+import "github.com/devosher01/cairn/internal/engine"
 
-	"github.com/devosher01/cairn/internal/manifest"
-)
-
-type counters struct {
-	puts                   atomic.Uint64
-	deletes                atomic.Uint64
-	gets                   atomic.Uint64
-	walBytesWritten        atomic.Uint64
-	flushes                atomic.Uint64
-	flushBytes             atomic.Uint64
-	compactions            atomic.Uint64
-	compactionBytesRead    atomic.Uint64
-	compactionBytesWritten atomic.Uint64
-	writeStalls            atomic.Uint64
-}
+const NumLevels = engine.NumLevels
 
 type LevelMetrics struct {
 	Tables int
@@ -35,31 +20,24 @@ type Metrics struct {
 	CompactionBytesRead    uint64
 	CompactionBytesWritten uint64
 	WriteStalls            uint64
-	Levels                 [manifest.NumLevels]LevelMetrics
+	Levels                 [NumLevels]LevelMetrics
 }
 
-func (db *DB) Metrics() Metrics {
+func metricsFrom(m engine.Metrics) Metrics {
 	out := Metrics{
-		Puts:                   db.counters.puts.Load(),
-		Deletes:                db.counters.deletes.Load(),
-		Gets:                   db.counters.gets.Load(),
-		WALBytesWritten:        db.counters.walBytesWritten.Load(),
-		Flushes:                db.counters.flushes.Load(),
-		FlushBytes:             db.counters.flushBytes.Load(),
-		Compactions:            db.counters.compactions.Load(),
-		CompactionBytesRead:    db.counters.compactionBytesRead.Load(),
-		CompactionBytesWritten: db.counters.compactionBytesWritten.Load(),
-		WriteStalls:            db.counters.writeStalls.Load(),
+		Puts:                   m.Puts,
+		Deletes:                m.Deletes,
+		Gets:                   m.Gets,
+		WALBytesWritten:        m.WALBytesWritten,
+		Flushes:                m.Flushes,
+		FlushBytes:             m.FlushBytes,
+		Compactions:            m.Compactions,
+		CompactionBytesRead:    m.CompactionBytesRead,
+		CompactionBytesWritten: m.CompactionBytesWritten,
+		WriteStalls:            m.WriteStalls,
 	}
-	db.mu.Lock()
-	if db.current != nil {
-		for l, level := range db.current.levels {
-			for _, h := range level {
-				out.Levels[l].Tables++
-				out.Levels[l].Bytes += int64(h.meta.Size)
-			}
-		}
+	for i, level := range m.Levels {
+		out.Levels[i] = LevelMetrics(level)
 	}
-	db.mu.Unlock()
 	return out
 }

@@ -1,4 +1,4 @@
-package cairn
+package engine
 
 import (
 	"errors"
@@ -35,6 +35,7 @@ func Open(dir string, opts *Options) (*DB, error) {
 	db.flushDone.L = &db.mu
 	db.stallEnd.L = &db.mu
 	db.bgWake.L = &db.mu
+	db.idleWait.L = &db.mu
 	if err := db.recover(); err != nil {
 		for _, h := range db.handles {
 			_ = h.tbl.Close()

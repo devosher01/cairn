@@ -1,4 +1,4 @@
-package cairn_test
+package modeltest_test
 
 import (
 	"bytes"
@@ -102,12 +102,12 @@ func fuzzStep(t *testing.T, db *cairn.DB, o *oracle, index int, code, arg byte) 
 	case _fuzzOpGet:
 		fuzzCheckKey(t, db, o, label, key)
 	case _fuzzOpFlush:
-		if err := db.TestingFlush(); err != nil {
-			t.Fatalf("%s: TestingFlush returned error: %v", label, err)
+		if err := db.Flush(); err != nil {
+			t.Fatalf("%s: Flush returned error: %v", label, err)
 		}
 	case _fuzzOpCompact:
-		if err := db.TestingCompact(); err != nil {
-			t.Fatalf("%s: TestingCompact returned error: %v", label, err)
+		if err := db.Compact(); err != nil {
+			t.Fatalf("%s: Compact returned error: %v", label, err)
 		}
 	case _fuzzOpScan:
 		fuzzCheckScan(t, db, o, label)

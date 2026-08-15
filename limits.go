@@ -1,20 +1,10 @@
 package cairn
 
+import "github.com/devosher01/cairn/internal/engine"
+
 const (
-	MaxKeySize   = 64 << 10
-	MaxValueSize = 4 << 20
+	MaxKeySize    = engine.MaxKeySize
+	MaxValueSize  = engine.MaxValueSize
+	MaxBatchLen   = engine.MaxBatchLen
+	MaxBatchCount = engine.MaxBatchCount
 )
-
-func validateKey(key []byte) error {
-	if len(key) == 0 || len(key) > MaxKeySize {
-		return ErrInvalidKey
-	}
-	return nil
-}
-
-func validateValue(value []byte) error {
-	if len(value) > MaxValueSize {
-		return ErrInvalidValue
-	}
-	return nil
-}

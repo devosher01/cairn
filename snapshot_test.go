@@ -36,7 +36,7 @@ func TestSnapshot_ReadsPinnedValuesAcrossFlushAndCompaction(t *testing.T) {
 	mustFlush(t, db)
 	mustCompact(t, db)
 
-	if deep := countTables(db.TestingLevelFiles()[1:]); deep == 0 {
+	if deepTables(db) == 0 {
 		t.Fatalf("levels below 0 hold no tables, want the compaction output there")
 	}
 	mustSnapGet(t, snap, "k", "old")

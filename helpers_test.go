@@ -1,11 +1,8 @@
 package cairn_test
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"maps"
-	"slices"
 	"strings"
 	"testing"
 
@@ -14,11 +11,7 @@ import (
 	"github.com/devosher01/cairn/internal/env/simenv"
 )
 
-const (
-	_dbDir        = "model"
-	_keyDomain    = 24
-	_opIndexBytes = 4
-)
+const _dbDir = "db"
 
 func openDB(t *testing.T, sandbox env.Env, mode cairn.SyncMode) *cairn.DB {
 	t.Helper()
@@ -34,7 +27,16 @@ func openDB(t *testing.T, sandbox env.Env, mode cairn.SyncMode) *cairn.DB {
 func openManualDB(t *testing.T, seed uint64) *cairn.DB {
 	t.Helper()
 
-	db, err := cairn.Open(_dbDir, modelOptions(simenv.New(seed).Env(), cairn.SyncAlways))
+	db, err := cairn.Open(_dbDir, &cairn.Options{
+		Env:                   simenv.New(seed).Env(),
+		Sync:                  cairn.SyncAlways,
+		MemtableSize:          2048,
+		BlockSize:             512,
+		L0CompactTrigger:      2,
+		TargetFileSize:        4096,
+		BaseLevelSize:         8192,
+		DisableAutoCompaction: true,
+	})
 	if err != nil {
 		t.Fatalf("Open returned error: %v", err)
 	}
@@ -43,6 +45,10 @@ func openManualDB(t *testing.T, seed uint64) *cairn.DB {
 	})
 
 	return db
+}
+
+func domainKey(index int) string {
+	return fmt.Sprintf("key-%02d", index)
 }
 
 func putAll(t *testing.T, db *cairn.DB, entries ...string) {
@@ -76,16 +82,16 @@ func mustNotFound(t *testing.T, db *cairn.DB, key string) {
 func mustFlush(t *testing.T, db *cairn.DB) {
 	t.Helper()
 
-	if err := db.TestingFlush(); err != nil {
-		t.Fatalf("TestingFlush returned error: %v", err)
+	if err := db.Flush(); err != nil {
+		t.Fatalf("Flush returned error: %v", err)
 	}
 }
 
 func mustCompact(t *testing.T, db *cairn.DB) {
 	t.Helper()
 
-	if err := db.TestingCompact(); err != nil {
-		t.Fatalf("TestingCompact returned error: %v", err)
+	if err := db.Compact(); err != nil {
+		t.Fatalf("Compact returned error: %v", err)
 	}
 }
 
@@ -134,52 +140,16 @@ func mustPanic(t *testing.T, name string, call func()) {
 	call()
 }
 
-func countTables(levels [][]uint64) int {
+func levelZeroTables(db *cairn.DB) int {
+	return db.Metrics().Levels[0].Tables
+}
+
+func deepTables(db *cairn.DB) int {
+	levels := db.Metrics().Levels
 	total := 0
-	for _, level := range levels {
-		total += len(level)
+	for _, level := range levels[1:] {
+		total += level.Tables
 	}
 
 	return total
-}
-
-func domainKey(index int) string {
-	return fmt.Sprintf("key-%02d", index)
-}
-
-func formatState(state map[string][]byte) string {
-	names := slices.Sorted(maps.Keys(state))
-	out := make([]string, len(names))
-	for i, name := range names {
-		value := state[name]
-		out[i] = fmt.Sprintf("%s=%d:%x", name, len(value), value[:min(len(value), _opIndexBytes)])
-	}
-
-	return "{" + strings.Join(out, " ") + "}"
-}
-
-func formatPairs(pairs []kv) string {
-	out := make([]string, len(pairs))
-	for i, pair := range pairs {
-		out[i] = fmt.Sprintf("%s=%d:%x", pair.key, len(pair.value),
-			pair.value[:min(len(pair.value), _opIndexBytes)])
-	}
-
-	return "[" + strings.Join(out, " ") + "]"
-}
-
-func equalPairs(got, want []kv) bool {
-	return slices.EqualFunc(got, want, func(a, b kv) bool {
-		return a.key == b.key && bytes.Equal(a.value, b.value)
-	})
-}
-
-func clipFrom(pairs []kv, from string) []kv {
-	for i, pair := range pairs {
-		if pair.key >= from {
-			return pairs[i:]
-		}
-	}
-
-	return nil
 }
