@@ -47,23 +47,30 @@ func TestCrashCampaign_FullEngine(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			w := runCrashWorkload(t, tt.giveSeed, tt.giveMode)
-			ops := w.sim.Ops()
-			points := 0
-			for point := range crashtest.Points(ops, crashtest.Options{
-				TornByteLimit:  _campaignTornLimit,
-				TornStride:     _campaignTornStride,
-				ScatterSamples: _campaignScatter,
-			}) {
-				if skipCrashPoint(point) {
-					continue
-				}
-				w.verifyCrashPoint(point)
-				points++
-			}
+			for s := range campaignScale() {
+				seed := tt.giveSeed + uint64(s)
+				t.Run(fmt.Sprintf("seed-%d", seed), func(t *testing.T) {
+					t.Parallel()
 
-			t.Logf("%s: %d operations, %d acknowledged mutations, %d crash points verified",
-				campaignSyncName(tt.giveMode), len(ops), w.oracle.acked(), points)
+					w := runCrashWorkload(t, seed, tt.giveMode)
+					ops := w.sim.Ops()
+					points := 0
+					for point := range crashtest.Points(ops, crashtest.Options{
+						TornByteLimit:  _campaignTornLimit,
+						TornStride:     _campaignTornStride,
+						ScatterSamples: _campaignScatter,
+					}) {
+						if skipCrashPoint(point) {
+							continue
+						}
+						w.verifyCrashPoint(point)
+						points++
+					}
+
+					t.Logf("%s seed %d: %d operations, %d acknowledged mutations, %d crash points verified",
+						campaignSyncName(tt.giveMode), seed, len(ops), w.oracle.acked(), points)
+				})
+			}
 		})
 	}
 }
