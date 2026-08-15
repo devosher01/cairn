@@ -131,10 +131,12 @@ func (db *DB) mergeInputs(inputs []manifest.Table, target int) ([]manifest.Table
 		read += in.Size
 	}
 	m := newMergeIter(sources)
+	oldestSnap := db.oldestSnapshotSeq()
 
 	var outputs []manifest.Table
 	var w *tableWriter
 	var prevUser []byte
+	var lastSeqForKey keys.Seq
 	prevSet := false
 	fail := func(err error) ([]manifest.Table, uint64, error) {
 		_ = m.close()
@@ -149,14 +151,19 @@ func (db *DB) mergeInputs(inputs []manifest.Table, target int) ([]manifest.Table
 			break
 		}
 		user := keys.UserKey(ikey)
-		if prevSet && bytes.Equal(user, prevUser) {
+		seq, kind := keys.Trailer(ikey)
+		sameUser := prevSet && bytes.Equal(user, prevUser)
+		if !sameUser {
+			prevUser = append(prevUser[:0], user...)
+			prevSet = true
+			lastSeqForKey = keys.MaxSeq
+		}
+		shadowed := lastSeqForKey <= oldestSnap
+		lastSeqForKey = seq
+		if sameUser && shadowed {
 			continue
 		}
-		prevUser = append(prevUser[:0], user...)
-		prevSet = true
-
-		_, kind := keys.Trailer(ikey)
-		if kind == keys.KindDelete && db.bottommostFor(user, target) {
+		if kind == keys.KindDelete && seq <= oldestSnap && db.bottommostFor(user, target) {
 			continue
 		}
 

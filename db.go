@@ -33,6 +33,8 @@ type DB struct {
 	imm          *memtable.Memtable
 	immCutoffWAL uint64
 	current      *version
+	openHandles  int
+	snaps        map[*Snapshot]struct{}
 	closed       bool
 	bgErr        error
 	bgRetries    int
@@ -88,7 +90,10 @@ func (db *DB) Get(key []byte) ([]byte, error) {
 	db.mu.Unlock()
 	defer v.unref()
 
-	seq := keys.Seq(db.visible.Load())
+	return db.getAt(key, keys.Seq(db.visible.Load()), mem, imm, v)
+}
+
+func (db *DB) getAt(key []byte, seq keys.Seq, mem, imm *memtable.Memtable, v *version) ([]byte, error) {
 	if value, kind, ok := mem.Get(key, seq); ok {
 		return getResult(value, kind)
 	}
@@ -122,6 +127,10 @@ func (db *DB) Close() error {
 		db.mu.Unlock()
 		return ErrClosed
 	}
+	if db.openHandles > 0 {
+		db.mu.Unlock()
+		return ErrOpenHandles
+	}
 	db.closed = true
 	db.bgWake.Broadcast()
 	db.flushDone.Broadcast()
@@ -145,19 +154,22 @@ func (db *DB) Close() error {
 func (db *DB) commit(fill func(*batch.Batch)) error {
 	db.commitMu.Lock()
 	defer db.commitMu.Unlock()
+	db.writeBatch.Reset()
+	fill(db.writeBatch)
+	return db.commitLocked(db.writeBatch)
+}
 
+func (db *DB) commitLocked(bt *batch.Batch) error {
 	if err := db.writable(); err != nil {
 		return err
 	}
 	if err := db.waitForWriteRoom(); err != nil {
 		return err
 	}
-	db.writeBatch.Reset()
-	fill(db.writeBatch)
-	if db.writeBatch.Count() == 0 {
+	if bt.Count() == 0 {
 		return nil
 	}
-	payload := db.writeBatch.Seal(db.lastSeq + 1)
+	payload := bt.Seal(db.lastSeq + 1)
 	if err := db.wal.Append(payload); err != nil {
 		return db.fail(err)
 	}
