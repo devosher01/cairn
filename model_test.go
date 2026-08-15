@@ -11,15 +11,18 @@ import (
 )
 
 const (
-	_alwaysFirstSeed uint64 = 0
-	_offFirstSeed    uint64 = 1000
+	_alwaysFirstSeed   uint64 = 0
+	_offFirstSeed      uint64 = 1000
+	_intervalFirstSeed uint64 = 2000
 )
 
 const (
-	_alwaysSeeds = 180
-	_alwaysShort = 36
-	_offSeeds    = 100
-	_offShort    = 20
+	_alwaysSeeds   = 180
+	_alwaysShort   = 36
+	_offSeeds      = 100
+	_offShort      = 20
+	_intervalSeeds = 60
+	_intervalShort = 12
 )
 
 func TestModel_SyncAlways(t *testing.T) {
@@ -32,6 +35,12 @@ func TestModel_SyncOff(t *testing.T) {
 	t.Parallel()
 
 	runCampaign(t, cairn.SyncOff, _offFirstSeed, campaignSeeds(_offSeeds, _offShort))
+}
+
+func TestModel_SyncInterval(t *testing.T) {
+	t.Parallel()
+
+	runCampaign(t, cairn.SyncInterval, _intervalFirstSeed, campaignSeeds(_intervalSeeds, _intervalShort))
 }
 
 func runCampaign(t *testing.T, mode cairn.SyncMode, firstSeed uint64, seeds int) {

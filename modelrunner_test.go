@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/devosher01/cairn"
 	"github.com/devosher01/cairn/internal/env"
@@ -26,6 +27,7 @@ const (
 	_modelBaseLevelSize  int64 = 8192
 	_modelBlockSize            = 512
 	_modelL0Compact            = 2
+	_modelSyncInterval         = 50 * time.Millisecond
 )
 
 type liveSnap struct {
@@ -69,6 +71,9 @@ func runSequence(t *testing.T, seed uint64, mode cairn.SyncMode) int {
 }
 
 func (r *runner) step(index int, o op) {
+	if r.mode == cairn.SyncInterval && index%8 == 7 {
+		r.sim.Clock().Advance(_modelSyncInterval)
+	}
 	switch o.kind {
 	case opPut:
 		r.put(index, o)
@@ -425,6 +430,7 @@ func modelOptions(sandbox env.Env, mode cairn.SyncMode) *cairn.Options {
 	return &cairn.Options{
 		Env:                   sandbox,
 		Sync:                  mode,
+		Interval:              _modelSyncInterval,
 		MemtableSize:          _modelMemtableSize,
 		BlockSize:             _modelBlockSize,
 		L0CompactTrigger:      _modelL0Compact,

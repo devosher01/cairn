@@ -42,6 +42,8 @@ type DB struct {
 	stallEnd     sync.Cond
 	bgWake       sync.Cond
 	bgDone       chan struct{}
+	syncStop     chan struct{}
+	syncDone     chan struct{}
 
 	state         manifest.State
 	handles       map[uint64]*tableHandle
@@ -120,8 +122,6 @@ func getResult(value []byte, kind keys.Kind) ([]byte, error) {
 }
 
 func (db *DB) Close() error {
-	db.commitMu.Lock()
-	defer db.commitMu.Unlock()
 	db.mu.Lock()
 	if db.closed {
 		db.mu.Unlock()
@@ -137,10 +137,17 @@ func (db *DB) Close() error {
 	db.stallEnd.Broadcast()
 	db.mu.Unlock()
 
+	if db.syncStop != nil {
+		close(db.syncStop)
+		<-db.syncDone
+	}
 	if db.bgDone != nil {
 		<-db.bgDone
 	}
+	db.commitMu.Lock()
 	err := db.wal.Close()
+	db.commitMu.Unlock()
+
 	db.mu.Lock()
 	current := db.current
 	db.mu.Unlock()
@@ -149,6 +156,33 @@ func (db *DB) Close() error {
 		err = lockErr
 	}
 	return err
+}
+
+func (db *DB) intervalSyncLoop(ticker env.Ticker) {
+	defer close(db.syncDone)
+	for {
+		select {
+		case <-ticker.C():
+			db.intervalSync()
+		case <-db.syncStop:
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+func (db *DB) intervalSync() {
+	db.commitMu.Lock()
+	defer db.commitMu.Unlock()
+	db.mu.Lock()
+	closed := db.closed
+	db.mu.Unlock()
+	if closed || db.failed != nil {
+		return
+	}
+	if err := db.wal.Sync(); err != nil {
+		db.failed = err
+	}
 }
 
 func (db *DB) commit(fill func(*batch.Batch)) error {
