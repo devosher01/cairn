@@ -47,6 +47,11 @@ func Open(dir string, opts *Options) (*DB, error) {
 		go db.backgroundWorker()
 		db.wakeWorker()
 	}
+	if o.Sync == SyncInterval {
+		db.syncStop = make(chan struct{})
+		db.syncDone = make(chan struct{})
+		go db.intervalSyncLoop(o.Env.Clock.NewTicker(o.Interval))
+	}
 	return db, nil
 }
 

@@ -1,6 +1,8 @@
 package cairn
 
 import (
+	"time"
+
 	"github.com/devosher01/cairn/internal/env"
 	"github.com/devosher01/cairn/internal/env/osenv"
 )
@@ -10,7 +12,10 @@ type SyncMode uint8
 const (
 	SyncAlways SyncMode = iota
 	SyncOff
+	SyncInterval
 )
+
+const _defaultSyncInterval = 100 * time.Millisecond
 
 const (
 	_defaultMemtableSize   = 4 << 20
@@ -25,6 +30,7 @@ const (
 type Options struct {
 	Env                   env.Env
 	Sync                  SyncMode
+	Interval              time.Duration
 	MemtableSize          int64
 	BlockSize             int
 	BloomBitsPerKey       int
@@ -46,6 +52,9 @@ func (o *Options) resolved(dir string) (Options, error) {
 			return Options{}, err
 		}
 		out.Env = real
+	}
+	if out.Sync == SyncInterval && out.Interval <= 0 {
+		out.Interval = _defaultSyncInterval
 	}
 	if out.MemtableSize <= 0 {
 		out.MemtableSize = _defaultMemtableSize
