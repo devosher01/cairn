@@ -53,3 +53,14 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go run ./tools/crashkill -iterations 8
+  bench-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+        working-directory: bench
+      - run: go test -run TestAmplification -short ./...
+        working-directory: bench
