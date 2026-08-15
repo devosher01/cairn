@@ -30,6 +30,7 @@ func Open(dir string, opts *Options) (*DB, error) {
 		writeBatch: batch.New(),
 		mem:        memtable.New(o.Env.Rand),
 		handles:    make(map[uint64]*tableHandle),
+		snaps:      make(map[*Snapshot]struct{}),
 	}
 	db.flushDone.L = &db.mu
 	db.stallEnd.L = &db.mu
