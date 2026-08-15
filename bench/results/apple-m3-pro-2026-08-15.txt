@@ -1,0 +1,98 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/devosher01/cairn/bench
+cpu: Apple M3 Pro
+BenchmarkFillSeq/cairn-12 	  413871	      3657 ns/op	  31.72 MB/s	     755 B/op	       4 allocs/op
+BenchmarkFillSeq/cairn-12 	  484324	      3566 ns/op	  32.53 MB/s	     758 B/op	       4 allocs/op
+BenchmarkFillSeq/cairn-12 	  540562	      3723 ns/op	  31.16 MB/s	     801 B/op	       4 allocs/op
+BenchmarkFillSeq/cairn-12 	  461150	      3626 ns/op	  31.99 MB/s	     772 B/op	       4 allocs/op
+BenchmarkFillSeq/cairn-12 	  504970	      3700 ns/op	  31.36 MB/s	     772 B/op	       4 allocs/op
+BenchmarkFillSeq/bolt-12  	   48998	     26526 ns/op	   4.37 MB/s	   59245 B/op	      57 allocs/op
+BenchmarkFillSeq/bolt-12  	   51976	     25814 ns/op	   4.49 MB/s	   59332 B/op	      57 allocs/op
+BenchmarkFillSeq/bolt-12  	   52374	     25812 ns/op	   4.49 MB/s	   59340 B/op	      57 allocs/op
+BenchmarkFillSeq/bolt-12  	   52364	     25662 ns/op	   4.52 MB/s	   59349 B/op	      57 allocs/op
+BenchmarkFillSeq/bolt-12  	   52239	     25781 ns/op	   4.50 MB/s	   59352 B/op	      57 allocs/op
+BenchmarkFillSeq/pebble-12         	 1633342	       730.8 ns/op	 158.73 MB/s	      10 B/op	       0 allocs/op
+BenchmarkFillSeq/pebble-12         	 1616102	       735.6 ns/op	 157.69 MB/s	      10 B/op	       0 allocs/op
+BenchmarkFillSeq/pebble-12         	 1607415	       737.1 ns/op	 157.37 MB/s	      10 B/op	       0 allocs/op
+BenchmarkFillSeq/pebble-12         	 1621496	       722.5 ns/op	 160.55 MB/s	      10 B/op	       0 allocs/op
+BenchmarkFillSeq/pebble-12         	 1613125	       734.5 ns/op	 157.93 MB/s	      10 B/op	       0 allocs/op
+BenchmarkFillSync/cairn-12         	     450	   2680033 ns/op	   0.04 MB/s	     267 B/op	       4 allocs/op
+BenchmarkFillSync/cairn-12         	     421	   2679805 ns/op	   0.04 MB/s	     268 B/op	       4 allocs/op
+BenchmarkFillSync/cairn-12         	     462	   2651949 ns/op	   0.04 MB/s	     267 B/op	       4 allocs/op
+BenchmarkFillSync/cairn-12         	     460	   2628502 ns/op	   0.04 MB/s	     267 B/op	       4 allocs/op
+BenchmarkFillSync/cairn-12         	     465	   2656234 ns/op	   0.04 MB/s	     267 B/op	       4 allocs/op
+BenchmarkFillSync/bolt-12          	     199	   5950740 ns/op	   0.02 MB/s	   34461 B/op	      49 allocs/op
+BenchmarkFillSync/bolt-12          	     206	   5894658 ns/op	   0.02 MB/s	   34558 B/op	      50 allocs/op
+BenchmarkFillSync/bolt-12          	     200	   5990714 ns/op	   0.02 MB/s	   34545 B/op	      49 allocs/op
+BenchmarkFillSync/bolt-12          	     200	   5995676 ns/op	   0.02 MB/s	   34461 B/op	      49 allocs/op
+BenchmarkFillSync/bolt-12          	     199	   5937508 ns/op	   0.02 MB/s	   34543 B/op	      49 allocs/op
+BenchmarkFillSync/pebble-12        	     450	   2661680 ns/op	   0.04 MB/s	      98 B/op	       0 allocs/op
+BenchmarkFillSync/pebble-12        	     445	   2670051 ns/op	   0.04 MB/s	      99 B/op	       0 allocs/op
+BenchmarkFillSync/pebble-12        	     430	   2853800 ns/op	   0.04 MB/s	     102 B/op	       0 allocs/op
+BenchmarkFillSync/pebble-12        	     417	   2683009 ns/op	   0.04 MB/s	     102 B/op	       0 allocs/op
+BenchmarkFillSync/pebble-12        	     438	   2867688 ns/op	   0.04 MB/s	     100 B/op	       0 allocs/op
+BenchmarkFillRandom/cairn-12       	  515126	      4366 ns/op	  26.57 MB/s	     930 B/op	       4 allocs/op
+BenchmarkFillRandom/cairn-12       	  433879	      4109 ns/op	  28.23 MB/s	     841 B/op	       4 allocs/op
+BenchmarkFillRandom/cairn-12       	  441444	      4120 ns/op	  28.16 MB/s	     855 B/op	       4 allocs/op
+BenchmarkFillRandom/cairn-12       	  415849	      4086 ns/op	  28.39 MB/s	     822 B/op	       4 allocs/op
+BenchmarkFillRandom/cairn-12       	  486188	      4255 ns/op	  27.26 MB/s	     904 B/op	       4 allocs/op
+BenchmarkFillRandom/bolt-12        	   54982	     23744 ns/op	   4.89 MB/s	   55214 B/op	      55 allocs/op
+BenchmarkFillRandom/bolt-12        	   57331	     23343 ns/op	   4.97 MB/s	   55359 B/op	      56 allocs/op
+BenchmarkFillRandom/bolt-12        	   57996	     23791 ns/op	   4.88 MB/s	   55410 B/op	      56 allocs/op
+BenchmarkFillRandom/bolt-12        	   56596	     23504 ns/op	   4.94 MB/s	   55319 B/op	      55 allocs/op
+BenchmarkFillRandom/bolt-12        	   56382	     23469 ns/op	   4.94 MB/s	   55297 B/op	      55 allocs/op
+BenchmarkFillRandom/pebble-12      	 1024849	      1494 ns/op	  77.66 MB/s	      17 B/op	       0 allocs/op
+BenchmarkFillRandom/pebble-12      	  934040	      1340 ns/op	  86.57 MB/s	      16 B/op	       0 allocs/op
+BenchmarkFillRandom/pebble-12      	  907539	      1361 ns/op	  85.24 MB/s	      16 B/op	       0 allocs/op
+BenchmarkFillRandom/pebble-12      	  896216	      1403 ns/op	  82.68 MB/s	      16 B/op	       0 allocs/op
+BenchmarkFillRandom/pebble-12      	  890618	      1418 ns/op	  81.83 MB/s	      16 B/op	       0 allocs/op
+BenchmarkReadRandom/cairn-12       	  410638	      2514 ns/op	    5047 B/op	       6 allocs/op
+BenchmarkReadRandom/cairn-12       	  402760	      2509 ns/op	    5048 B/op	       6 allocs/op
+BenchmarkReadRandom/cairn-12       	  425202	      2500 ns/op	    5043 B/op	       5 allocs/op
+BenchmarkReadRandom/cairn-12       	  429602	      2547 ns/op	    5042 B/op	       5 allocs/op
+BenchmarkReadRandom/cairn-12       	  478456	      2497 ns/op	    5033 B/op	       5 allocs/op
+BenchmarkReadRandom/bolt-12        	 1335012	       895.0 ns/op	     688 B/op	      10 allocs/op
+BenchmarkReadRandom/bolt-12        	 1345347	       890.4 ns/op	     688 B/op	      10 allocs/op
+BenchmarkReadRandom/bolt-12        	 1331068	       898.6 ns/op	     688 B/op	      10 allocs/op
+BenchmarkReadRandom/bolt-12        	 1547707	       768.9 ns/op	     688 B/op	      10 allocs/op
+BenchmarkReadRandom/bolt-12        	 1430527	       828.7 ns/op	     688 B/op	      10 allocs/op
+BenchmarkReadRandom/pebble-12      	  415029	      2978 ns/op	     112 B/op	       1 allocs/op
+BenchmarkReadRandom/pebble-12      	  413727	      2905 ns/op	     112 B/op	       1 allocs/op
+BenchmarkReadRandom/pebble-12      	  339361	      2959 ns/op	     112 B/op	       1 allocs/op
+BenchmarkReadRandom/pebble-12      	  426141	      2902 ns/op	     112 B/op	       1 allocs/op
+BenchmarkReadRandom/pebble-12      	  419958	      2886 ns/op	     112 B/op	       1 allocs/op
+BenchmarkScan/cairn-12             	      80	  15114446 ns/op	1534.96 MB/s	  727374 B/op	    6268 allocs/op
+BenchmarkScan/cairn-12             	      80	  15775733 ns/op	1470.61 MB/s	  727323 B/op	    6268 allocs/op
+BenchmarkScan/cairn-12             	      85	  13866947 ns/op	1673.04 MB/s	  703036 B/op	    6248 allocs/op
+BenchmarkScan/cairn-12             	      80	  13637652 ns/op	1701.17 MB/s	  727364 B/op	    6268 allocs/op
+BenchmarkScan/cairn-12             	      84	  13204371 ns/op	1756.99 MB/s	  707664 B/op	    6252 allocs/op
+BenchmarkScan/bolt-12              	     760	   1592809 ns/op	14565.47 MB/s	     600 B/op	      11 allocs/op
+BenchmarkScan/bolt-12              	     759	   1575356 ns/op	14726.83 MB/s	     600 B/op	      11 allocs/op
+BenchmarkScan/bolt-12              	     765	   1569321 ns/op	14783.47 MB/s	     600 B/op	      11 allocs/op
+BenchmarkScan/bolt-12              	     762	   1571841 ns/op	14759.77 MB/s	     600 B/op	      11 allocs/op
+BenchmarkScan/bolt-12              	     763	   1577016 ns/op	14711.33 MB/s	     600 B/op	      11 allocs/op
+BenchmarkScan/pebble-12            	      70	  16634369 ns/op	1394.70 MB/s	    1886 B/op	      42 allocs/op
+BenchmarkScan/pebble-12            	      69	  17622639 ns/op	1316.49 MB/s	    1883 B/op	      42 allocs/op
+BenchmarkScan/pebble-12            	      67	  17873736 ns/op	1297.99 MB/s	    1886 B/op	      42 allocs/op
+BenchmarkScan/pebble-12            	      72	  16728950 ns/op	1386.82 MB/s	    1889 B/op	      42 allocs/op
+BenchmarkScan/pebble-12            	      72	  16781414 ns/op	1382.48 MB/s	    1881 B/op	      42 allocs/op
+PASS
+ok  	github.com/devosher01/cairn/bench	173.678s
+=== RUN   TestAmplification
+    amp_test.go:41: after load: L0 tables=3 bytes=11740230
+    amp_test.go:41: after load: L1 tables=9 bytes=35866933
+    amp_test.go:41: after load: L2 tables=26 bytes=108930014
+    amp_test.go:41: after load: puts=300000 walBytes=163200000 flushes=40 flushBytes=156536400
+    amp_test.go:41: after load: compactions=35 compactionRead=486880082 compactionWritten=486880859 stalls=0
+    amp_test.go:41: after load: userBytes=158400000 writtenBytes=806617259 liveBytes=156537177 writeAmp=5.09 spaceAmp=0.99
+    amp_test.go:50: after gets: L0 tables=4 bytes=15653640
+    amp_test.go:50: after gets: L1 tables=6 bytes=23157385
+    amp_test.go:50: after gets: L2 tables=29 bytes=121639562
+    amp_test.go:50: after gets: puts=300000 walBytes=163200000 flushes=41 flushBytes=160449810
+    amp_test.go:50: after gets: compactions=38 compactionRead=533481758 compactionWritten=533482535 stalls=0
+    amp_test.go:50: after gets: userBytes=158400000 writtenBytes=857132345 liveBytes=160450587 writeAmp=5.41 spaceAmp=1.01
+--- PASS: TestAmplification (3.38s)
+PASS
+ok  	github.com/devosher01/cairn/bench	3.717s
+EXIT:0
